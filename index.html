@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Agent Cost Game</title>
+  <title>The Price is Prompt</title>
   <style>
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
@@ -105,7 +105,7 @@
     padding: 16px 18px; margin-bottom: 12px; box-shadow: var(--shadow-md);
     transition: transform var(--t-fast), box-shadow var(--t-fast);
   }
-  .phase-card:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--border); }
+  .phase-card:hover { box-shadow: 5px 5px 0 var(--border); }
   .phase-card .phase-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
   .phase-card .phase-num {
     font-family: var(--mono); color: var(--text); font-size: 11px;
@@ -129,11 +129,10 @@
     text-align: left; min-height: 44px;
     position: relative;
   }
-  .pick-btn:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--border); background: var(--bg); }
-  .pick-btn:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--border); }
+  .pick-btn:hover { box-shadow: 3px 3px 0 var(--border); background: var(--bg); }
   .pick-btn.selected {
     background: var(--accent); border-color: var(--border);
-    box-shadow: none; transform: translate(2px, 2px);
+    box-shadow: var(--shadow-sm); transform: none;
   }
   .pick-btn .price { display: block; color: var(--muted-2); font-size: 11px; font-family: var(--mono); margin-top: 3px; font-weight: 500; }
   .pick-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
@@ -372,12 +371,6 @@
   }
 
   /* ---- Phase card stagger entrance ---- */
-  .phase-card {
-    animation: slide-up 0.28s ease-out both;
-  }
-  .phase-card:nth-child(1) { animation-delay: 0ms; }
-  .phase-card:nth-child(2) { animation-delay: 80ms; }
-  .phase-card:nth-child(3) { animation-delay: 160ms; }
   @keyframes slide-up {
     from { opacity: 0; transform: translateY(10px); }
     to   { opacity: 1; transform: translateY(0); }
@@ -455,11 +448,30 @@
     80%  { opacity: 1; }
     100% { transform: translateY(420px) rotate(calc(var(--i) * 30deg)); opacity: 0; }
   }
+
+  /* ---- Meme reaction ---- */
+  .reaction-meme {
+    text-align: center;
+    margin: 10px 0 6px;
+    animation: slide-up 0.35s ease-out both;
+  }
+  .reaction-meme .caption {
+    font-size: 13px; font-weight: 700;
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text);
+    background: var(--accent);
+    border: 2px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    padding: 4px 12px;
+    display: inline-block;
+  }
   </style>
 </head>
 <body>
   <header class="scoreboard">
-    <h1>$ AI Agent Cost Game</h1>
+    <h1>The Price is Prompt</h1>
     <span class="score-pill"><span class="label">round</span><span class="value" id="hud-round">—</span></span>
     <span class="score-pill"><span class="label">score</span><span class="value" id="hud-score">—</span></span>
     <span class="score-pill"><span class="label">bill so far</span><span class="value" id="hud-bill">—</span></span>
@@ -470,9 +482,6 @@
     <p>Loading…</p>
   </main>
   <div id="overlay-root"></div>
-  <footer>
-    <a href="sources.html">Sources</a> · Real Anthropic pricing, verified 2026-05-06
-  </footer>
 
   <script>
     'use strict';
@@ -487,9 +496,8 @@
     const TIER = { 'haiku-4-5': 0, 'sonnet-4-6': 1, 'opus-4-7': 2 };
 
     const ACTIONS = {
-      'main-thread': { short: 'Main thread',     icon: '🧵', desc: 'Direct read on parent. The full context re-bills on every turn.' },
-      'subagent':    { short: 'Subagent (Haiku)', icon: '🤖', desc: 'Delegate to a fresh-context Haiku worker. Returns a summary.' },
-      'cache':       { short: 'Reuse w/ cache',  icon: '♻️',  desc: 'Long stable session — prompt caching kicks in (1.25× write, 0.1× reads).' },
+      'main-thread': { short: 'Main thread', icon: '🧵', desc: 'Read directly on the parent thread. Auto-caching kicks in across turns; growing history still bills normally.' },
+      'subagent':    { short: 'Subagent',    icon: '🤖', desc: 'Delegate to a fresh-context subagent (inherits your chosen model, like real Claude Code). Returns one summary.' },
     };
 
     // ---------- Tickets (multi-phase) ----------
@@ -590,10 +598,11 @@
     //   - Tool-use: every turn brings ~3-5 tool calls (Read, Grep, Edit) returning ~3.5k tokens of results.
     //   - Subagent overhead: a real general-purpose subagent's system prompt + tool defs is 15-20k tokens.
     //     (Earlier draft used 6k which made small-task subagents look better than they are.)
-    const SYS_TOOL_OVERHEAD    = 7500;
-    const USER_MSG_TOKENS      = 100;
-    const TOOL_RESULT_PER_TURN = 3500;   // realistic per-turn tool result tokens
-    const SUBAGENT_OVERHEAD    = 16000;  // realistic subagent system+tools overhead
+    const SYS_TOOL_OVERHEAD            = 7500;
+    const USER_MSG_TOKENS              = 100;
+    const TOOL_RESULT_PER_TURN         = 5000;   // per-turn new tool tokens (matches ~5k cache_create/turn in real sessions)
+    const PARENT_TOOL_RESULT_W_SUB     = 1000;   // when subagent does the heavy work, parent does much less per turn
+    const SUBAGENT_OVERHEAD            = 16000;  // subagent system+tools overhead
 
     function summarySize(contextTokens) {
       return Math.max(1500, Math.min(3000, Math.floor(contextTokens * 0.04)));
@@ -618,47 +627,42 @@
       const histPerTurn = out + TOOL_RESULT_PER_TURN;
 
       if (action === 'main-thread') {
+        // Re-bill the full context every turn. (Real Claude Code auto-caches it, but
+        // we model the un-cached cost so the bloat is visible. Real bills are roughly
+        // 5-10× lower across the board with caching enabled — see the "Real-world notes"
+        // section. The relative ordering between strategies is what we're teaching.)
         for (let t = 0; t < turns; t++) {
           inputTokens  += SYS_TOOL_OVERHEAD + ctx + (t * histPerTurn) + USER_MSG_TOKENS + TOOL_RESULT_PER_TURN;
           outputTokens += out;
         }
         tokenBars.push({ kind: 'system',  name: `system + tools × ${turns}`,                count: SYS_TOOL_OVERHEAD * turns });
         tokenBars.push({ kind: 'context', name: `context (${(ctx/1000).toFixed(0)}k) × ${turns} re-bills`, count: ctx * turns });
-        tokenBars.push({ kind: 'context', name: `tool results × ${turns} (Read/Grep/etc)`,   count: TOOL_RESULT_PER_TURN * turns });
+        tokenBars.push({ kind: 'context', name: `tool results × ${turns} (Read/Grep/Edit)`, count: TOOL_RESULT_PER_TURN * turns });
         if (turns > 1) tokenBars.push({ kind: 'history', name: 'accumulated history (output + tool results)', count: Math.floor((turns - 1) * turns / 2) * histPerTurn });
-        tokenBars.push({ kind: 'user',    name: `user msgs × ${turns}`,                       count: USER_MSG_TOKENS * turns });
-        tokenBars.push({ kind: 'output',  name: `output × ${turns}`,                          count: out * turns });
+        tokenBars.push({ kind: 'user',    name: `user msgs × ${turns}`,                     count: USER_MSG_TOKENS * turns });
+        tokenBars.push({ kind: 'output',  name: `output × ${turns}`,                        count: out * turns });
       } else if (action === 'subagent') {
+        // Subagent inherits the parent's model — that's the real Claude Code default.
+        // Picking Sonnet + Subagent runs a Sonnet subagent, not Haiku.
+        const subModel = model;
+        const subM = PRICES[subModel];
         const summary = summarySize(ctx);
         const subInput  = SUBAGENT_OVERHEAD + 250 + ctx;
         const subOutput = 800 + summary;
-        subagentCost = (subInput * PRICES['haiku-4-5'].input + subOutput * PRICES['haiku-4-5'].output) / 1_000_000;
+        subagentCost = (subInput * subM.input + subOutput * subM.output) / 1_000_000;
+        // Parent thread: now mostly orchestrating — much lighter tool use per turn.
+        const parentHistPerTurn = out + PARENT_TOOL_RESULT_W_SUB;
         for (let t = 0; t < turns; t++) {
-          inputTokens  += SYS_TOOL_OVERHEAD + summary + (t * histPerTurn) + USER_MSG_TOKENS + TOOL_RESULT_PER_TURN;
+          inputTokens  += SYS_TOOL_OVERHEAD + summary + (t * parentHistPerTurn) + USER_MSG_TOKENS + PARENT_TOOL_RESULT_W_SUB;
           outputTokens += out;
         }
-        tokenBars.push({ kind: 'subagent', name: `Haiku subagent (${(SUBAGENT_OVERHEAD/1000).toFixed(0)}k overhead + ${(ctx/1000).toFixed(0)}k read)`, count: subInput, sub: true });
-        tokenBars.push({ kind: 'system',   name: `main: system + tools × ${turns}`,           count: SYS_TOOL_OVERHEAD * turns });
-        tokenBars.push({ kind: 'summary',  name: `main: subagent summary × ${turns}`,         count: summary * turns });
-        tokenBars.push({ kind: 'context',  name: `main: tool results × ${turns}`,             count: TOOL_RESULT_PER_TURN * turns });
-        if (turns > 1) tokenBars.push({ kind: 'history', name: 'accumulated history (output + tool results)', count: Math.floor((turns - 1) * turns / 2) * histPerTurn });
-        tokenBars.push({ kind: 'user',     name: `user msgs × ${turns}`,                      count: USER_MSG_TOKENS * turns });
-        tokenBars.push({ kind: 'output',   name: `output × ${turns}`,                         count: out * turns });
-      } else if (action === 'cache') {
-        cacheWriteCost = (SYS_TOOL_OVERHEAD + ctx) * M.cacheWrite5m / 1_000_000;
-        inputTokens  += USER_MSG_TOKENS + TOOL_RESULT_PER_TURN;
-        outputTokens += out;
-        for (let t = 1; t < turns; t++) {
-          cacheReadCost += (SYS_TOOL_OVERHEAD + ctx) * M.cacheRead / 1_000_000;
-          inputTokens  += (t * histPerTurn) + USER_MSG_TOKENS + TOOL_RESULT_PER_TURN;
-          outputTokens += out;
-        }
-        tokenBars.push({ kind: 'cache',   name: `cache write (${(ctx/1000).toFixed(0)}k) @ 1.25×`,    count: SYS_TOOL_OVERHEAD + ctx });
-        if (turns > 1) tokenBars.push({ kind: 'cache', name: `cache reads × ${turns - 1} @ 0.1×`,     count: (SYS_TOOL_OVERHEAD + ctx) * (turns - 1) });
-        tokenBars.push({ kind: 'context', name: `tool results × ${turns}`,                             count: TOOL_RESULT_PER_TURN * turns });
-        if (turns > 1) tokenBars.push({ kind: 'history', name: 'accumulated history (output + tool results)', count: Math.floor((turns - 1) * turns / 2) * histPerTurn });
-        tokenBars.push({ kind: 'user',    name: `user msgs × ${turns}`,                                count: USER_MSG_TOKENS * turns });
-        tokenBars.push({ kind: 'output',  name: `output × ${turns}`,                                   count: out * turns });
+        tokenBars.push({ kind: 'subagent', name: `${subM.short} subagent (${(SUBAGENT_OVERHEAD/1000).toFixed(0)}k overhead + ${(ctx/1000).toFixed(0)}k read)`, count: subInput, sub: true });
+        tokenBars.push({ kind: 'system',   name: `main: system + tools × ${turns}`,             count: SYS_TOOL_OVERHEAD * turns });
+        tokenBars.push({ kind: 'summary',  name: `main: subagent summary × ${turns}`,           count: summary * turns });
+        tokenBars.push({ kind: 'context',  name: `main: light tool calls × ${turns}`,           count: PARENT_TOOL_RESULT_W_SUB * turns });
+        if (turns > 1) tokenBars.push({ kind: 'history', name: 'main: accumulated history',     count: Math.floor((turns - 1) * turns / 2) * parentHistPerTurn });
+        tokenBars.push({ kind: 'user',     name: `main: user msgs × ${turns}`,                  count: USER_MSG_TOKENS * turns });
+        tokenBars.push({ kind: 'output',   name: `main: output × ${turns}`,                     count: out * turns });
       }
 
       const inputCost  = inputTokens  * M.input  / 1_000_000;
@@ -735,11 +739,21 @@
       eq(isQualityFail(parentPhase, 'sonnet-4-6', 'subagent').fail, true, 'subagent on parent phase = quality fail');
       eq(isQualityFail(parentPhase, 'sonnet-4-6', 'main-thread').fail, false, 'main-thread on parent phase = OK');
       eq(isQualityFail({ contextNeeded: 'isolated', minTier: 'opus-4-7' }, 'haiku-4-5', 'main-thread').fail, true, 'haiku on opus-only task = tier fail');
-      // Big repo: subagent strictly cheaper than naive opus main-thread
+      // Big repo, multi-turn: subagent (parent-model) beats main-thread because
+      // the 100k context isn't re-billed every turn.
       const bigPhase = TICKETS[5].phases[2];
-      const naive = computePhase(bigPhase, 'opus-4-7', 'main-thread').total;
-      const smart = computePhase(bigPhase, 'haiku-4-5', 'subagent').total;
-      eq(smart < naive, true, 'subagent + haiku cheaper than opus main-thread on big repo');
+      const mainCost = computePhase(bigPhase, 'sonnet-4-6', 'main-thread').total;
+      const subCost  = computePhase(bigPhase, 'sonnet-4-6', 'subagent').total;
+      eq(subCost < mainCost, true, 'subagent beats main-thread on multi-turn big ctx (parent-model subagent)');
+      // Tiny one-turn task: subagent overhead loses to direct read.
+      const tiny = TICKETS[0].phases[0];
+      const tinyMain = computePhase(tiny, 'haiku-4-5', 'main-thread').total;
+      const tinySub  = computePhase(tiny, 'haiku-4-5', 'subagent').total;
+      eq(tinyMain < tinySub, true, 'main-thread beats subagent on small one-shot work');
+      // Subagent should now use the parent's model: Sonnet + subagent runs a Sonnet subagent.
+      const sonnetSubCost = computePhase(bigPhase, 'sonnet-4-6', 'subagent').total;
+      const haikuSubCost  = computePhase(bigPhase, 'haiku-4-5',  'subagent').total;
+      eq(sonnetSubCost > haikuSubCost, true, 'subagent inherits parent model — Sonnet subagent costs more than Haiku subagent');
       // bestPhaseStrategy returns a valid combo
       const b = bestPhaseStrategy(TICKETS[3].phases[0]);
       eq(typeof b.model === 'string' && typeof b.action === 'string', true, 'bestPhaseStrategy yields a combo');
@@ -950,6 +964,27 @@
       }
     }
 
+    const REACTIONS = {
+      fail:   { id: 'IRkqguqMTKUne',    caption: 'NO. NO GOD PLEASE NO.' },
+      awful:  { id: '7HMiotS0zfMsyMefkU', caption: 'This is why Anthropic raises prices.' },
+      meh:    { id: 'l4KigdWQN5nzIrwA0', caption: 'Tokens? What are tokens?' },
+      ok:     { id: 'oAkNXcL4QOag8',    caption: 'Not bad... not bad at all.' },
+      great:  { id: 'DfLwM9kttDFEQ',    caption: "I'd drink to those savings." },
+      perfect:{ id: '7TtvTUMm9mp20',    caption: "I'll be back... with Haiku." },
+    };
+    function getReaction(score, qualityFails) {
+      if (qualityFails > 0) return REACTIONS.fail;
+      if (score === 100)    return REACTIONS.perfect;
+      if (score >= 90)      return REACTIONS.great;
+      if (score >= 70)      return REACTIONS.ok;
+      if (score >= 40)      return REACTIONS.meh;
+      return REACTIONS.awful;
+    }
+    function reactionHtml(score, qualityFails) {
+      const r = getReaction(score, qualityFails);
+      return `<div class="reaction-meme"><span class="caption">${r.caption}</span></div>`;
+    }
+
     function renderResult() {
       const r = state.runResult;
       const ticket = TICKETS[state.round];
@@ -991,6 +1026,7 @@
                 <div class="score-big ${scoreClass}"><span class="score-num">0</span><span class="score-denom"> / 100</span></div>
                 <span class="stars ${starsClass}">${stars}</span>
               </div>
+              ${reactionHtml(r.score, r.qualityFails)}
               <div class="compare">
                 <div>
                   <div class="label">Your bill</div>
@@ -1048,6 +1084,7 @@
           ${confettiPieces}
           <div class="gameover-stars ${avg >= 90 ? 'stars-gold' : 'stars-silver'}">${gameoverStars}</div>
           <h2>Game Over</h2>
+          ${reactionHtml(avg, 0)}
           <div class="final-score ${cls}"><span class="score-num">0</span><span class="score-denom"> / 100</span></div>
           <p class="summary"><strong>${escapeHtml(verdict)}</strong></p>
           <p class="summary">
@@ -1057,7 +1094,6 @@
           </p>
           <div class="run-row" style="justify-content:center">
             <button class="primary" data-action="restart">▶ Play again</button>
-            <a href="sources.html" style="color:var(--link);font-size:14px;align-self:center;margin-left:12px">Sources →</a>
           </div>
         </div>
       `;
