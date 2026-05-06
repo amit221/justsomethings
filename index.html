@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Agent Cost Game</title>
+  <style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+  :root {
+    --bg: #faf6ee;
+    --bg-2: #f0ead8;
+    --panel: #ffffff;
+    --panel-2: #fefcf8;
+    --border: #000000;
+    --border-soft: #d4c9b0;
+    --text: #0a0a0a;
+    --muted: #4a4a4a;
+    --muted-2: #7a7a7a;
+    --accent: #f5c842;
+    --accent-2: #e6b000;
+    --accent-soft: #fff8d6;
+    --good: #16a34a;
+    --good-soft: #dcfce7;
+    --bad: #dc2626;
+    --bad-soft: #fee2e2;
+    --link: #1d4ed8;
+    --purple: #7c3aed;
+    --purple-soft: #ede9fe;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    --sans: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif;
+    --shadow-sm: 2px 2px 0 var(--border);
+    --shadow-md: 4px 4px 0 var(--border);
+    --shadow-lg: 6px 6px 0 var(--border);
+    --radius-sm: 4px;
+    --radius: 6px;
+    --radius-lg: 8px;
+    --border-width: 2px;
+    --t-fast: 80ms ease;
+    --t-med: 150ms ease;
+    --t-spring: 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; color: var(--text); font-family: var(--sans); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+  body {
+    display: grid; grid-template-rows: auto 1fr auto; min-height: 100vh;
+    background: var(--bg);
+  }
+
+  header.scoreboard {
+    padding: 12px 24px;
+    border-bottom: var(--border-width) solid var(--border);
+    display: flex; gap: 10px; align-items: center; flex-wrap: nowrap;
+    background: var(--panel);
+    position: sticky; top: 0; z-index: 50;
+    overflow-x: auto;
+  }
+  .scoreboard h1 {
+    margin: 0; font-size: 16px; letter-spacing: -0.02em; color: var(--text); flex-shrink: 0;
+    display: inline-flex; align-items: center; gap: 8px; font-weight: 700;
+  }
+  .score-pill {
+    background: var(--panel); border: var(--border-width) solid var(--border);
+    border-radius: var(--radius-sm); box-shadow: var(--shadow-sm);
+    padding: 5px 12px; font-family: var(--mono); font-size: 12px;
+    display: inline-flex; align-items: center; gap: 6px;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .score-pill .label { color: var(--muted-2); font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+  .score-pill .value { color: var(--text); font-weight: 700; }
+  .score-pill .value.good { color: var(--good); }
+  .score-pill .value.bad  { color: var(--bad); }
+  .help-link {
+    margin-left: auto; color: var(--text); font-size: 13px; cursor: pointer; font-weight: 600;
+    background: var(--panel); border: var(--border-width) solid var(--border); padding: 6px 14px;
+    border-radius: var(--radius-sm); box-shadow: var(--shadow-sm);
+    font-family: var(--sans); display: inline-flex; align-items: center; gap: 6px;
+    transition: transform var(--t-fast), box-shadow var(--t-fast);
+  }
+  .help-link:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--border); }
+  .help-link:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--border); }
+
+  main { padding: 32px 28px; max-width: 1200px; margin: 0 auto; width: 100%; }
+  footer { padding: 16px 28px; border-top: var(--border-width) solid var(--border); background: var(--panel); color: var(--muted); font-size: 12px; text-align: center; font-weight: 500; }
+  footer a { color: var(--link); font-weight: 600; }
+  .icon { width: 1em; height: 1em; flex-shrink: 0; }
+
+  .game { display: grid; grid-template-columns: 1fr 360px; gap: 20px; }
+  @media (max-width: 1000px) { .game { grid-template-columns: 1fr; } }
+
+  .ticket-card {
+    background: var(--accent-soft);
+    border: var(--border-width) solid var(--border); border-radius: var(--radius-lg);
+    padding: 24px; box-shadow: var(--shadow-md);
+    margin-bottom: 16px;
+  }
+  .ticket-card .label { color: var(--muted-2); font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; }
+  .ticket-card h2 { margin: 6px 0 8px; font-size: 22px; letter-spacing: -0.02em; font-weight: 700; }
+  .ticket-card .brief { color: var(--muted); font-size: 14px; margin-bottom: 14px; line-height: 1.6; font-weight: 500; }
+  .ticket-stats { display: flex; gap: 8px; font-family: var(--mono); font-size: 11px; color: var(--text); margin-bottom: 4px; flex-wrap: wrap; }
+  .ticket-stats > span { padding: 4px 10px; background: var(--panel); border: var(--border-width) solid var(--border); border-radius: var(--radius-sm); font-weight: 600; box-shadow: var(--shadow-sm); }
+
+  .phase-card {
+    background: var(--panel); border: var(--border-width) solid var(--border); border-radius: var(--radius);
+    padding: 16px 18px; margin-bottom: 12px; box-shadow: var(--shadow-md);
+    transition: transform var(--t-fast), box-shadow var(--t-fast);
+  }
+  .phase-card:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--border); }
+  .phase-card .phase-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
+  .phase-card .phase-num {
+    font-family: var(--mono); color: var(--text); font-size: 11px;
+    background: var(--accent); padding: 3px 10px; border-radius: var(--radius-sm);
+    border: var(--border-width) solid var(--border); font-weight: 700;
+    letter-spacing: 0.04em; box-shadow: var(--shadow-sm);
+  }
+  .phase-card .phase-name { font-weight: 700; font-size: 15px; letter-spacing: -0.01em; }
+  .phase-card .phase-meta { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-bottom: 12px; line-height: 1.5; }
+  .phase-card .ctx-warn { color: var(--bad); font-weight: 700; }
+
+  .pick-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+  .pick-row.compact .pick-btn { padding: 10px 12px; font-size: 13px; min-height: 44px; }
+  .pick-btn {
+    background: var(--panel); color: var(--text);
+    border: var(--border-width) solid var(--border); border-radius: var(--radius-sm);
+    padding: 12px 14px; cursor: pointer;
+    font-family: var(--sans); font-size: 14px; font-weight: 600;
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--t-fast), box-shadow var(--t-fast), background var(--t-fast);
+    text-align: left; min-height: 44px;
+    position: relative;
+  }
+  .pick-btn:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--border); background: var(--bg); }
+  .pick-btn:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--border); }
+  .pick-btn.selected {
+    background: var(--accent); border-color: var(--border);
+    box-shadow: none; transform: translate(2px, 2px);
+  }
+  .pick-btn .price { display: block; color: var(--muted-2); font-size: 11px; font-family: var(--mono); margin-top: 3px; font-weight: 500; }
+  .pick-btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .pick-btn:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; transform: none; }
+
+  .pick-label { color: var(--muted-2); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; font-weight: 700; }
+
+  .run-row { margin-top: 22px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  button.primary {
+    background: var(--accent);
+    color: var(--text); border: var(--border-width) solid var(--border);
+    padding: 14px 24px; border-radius: var(--radius-sm);
+    font-weight: 700; font-size: 15px; letter-spacing: -0.01em;
+    cursor: pointer; font-family: var(--sans); min-height: 48px;
+    display: inline-flex; align-items: center; gap: 8px;
+    box-shadow: var(--shadow-md);
+    transition: transform var(--t-fast), box-shadow var(--t-fast);
+  }
+  button.primary:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--border); }
+  button.primary:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--border); }
+  button.primary:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: var(--shadow-sm); transform: none; }
+  button.ghost {
+    background: var(--panel); color: var(--text);
+    border: var(--border-width) solid var(--border); padding: 12px 18px;
+    border-radius: var(--radius-sm); cursor: pointer;
+    font-family: var(--sans); font-size: 14px; font-weight: 600; min-height: 48px;
+    display: inline-flex; align-items: center; gap: 8px;
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--t-fast), box-shadow var(--t-fast), background var(--t-fast);
+  }
+  button.ghost:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--border); background: var(--bg); }
+  button.ghost:active { transform: translate(1px, 1px); box-shadow: 0 0 0 var(--border); }
+  button.ghost:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+  aside.inspector {
+    background: var(--panel);
+    border: var(--border-width) solid var(--border); border-radius: var(--radius-lg);
+    padding: 18px; font-family: var(--mono); font-size: 12px;
+    align-self: start; position: sticky; top: 68px;
+    box-shadow: var(--shadow-md);
+  }
+  @media (max-width: 1000px) { aside.inspector { position: static; } }
+  aside.inspector h3 {
+    margin: 0 0 14px; font-size: 11px; color: var(--text); text-transform: uppercase;
+    letter-spacing: 0.1em; font-weight: 700;
+    background: var(--accent); border: var(--border-width) solid var(--border);
+    padding: 4px 10px; border-radius: var(--radius-sm); display: inline-block;
+    box-shadow: var(--shadow-sm);
+  }
+  aside.inspector .phase-block { margin-bottom: 14px; padding-bottom: 12px; border-bottom: 2px dashed var(--border-soft); }
+  aside.inspector .phase-block:last-child { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
+  aside.inspector .phase-block .phase-title {
+    color: var(--text); font-size: 10px; margin-bottom: 8px;
+    text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700;
+  }
+
+  .token-bar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 5px 6px; border-radius: var(--radius-sm);
+    cursor: help; margin-bottom: 3px;
+    transition: background var(--t-fast);
+  }
+  .token-bar:hover { background: var(--bg); }
+  .token-bar .swatch { flex-shrink: 0; height: 10px; border-radius: 1px; min-width: 4px; border: 1px solid rgba(0,0,0,0.2); }
+  .token-bar .swatch.system  { background: #94a3b8; }
+  .token-bar .swatch.context { background: var(--accent); }
+  .token-bar .swatch.summary { background: #4ade80; }
+  .token-bar .swatch.history { background: #94a3b8; opacity: 0.7; }
+  .token-bar .swatch.user    { background: #818cf8; }
+  .token-bar .swatch.output  { background: #f87171; }
+  .token-bar .swatch.subagent{ background: #c084fc; }
+  .token-bar .name { flex: 1; color: var(--muted); font-size: 11px; line-height: 1.3; }
+  .token-bar .count { color: var(--text); font-weight: 700; font-size: 11px; }
+
+  .totals { border-top: 2px solid var(--border); padding-top: 10px; margin-top: 10px; }
+  .totals .row { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; font-size: 11px; }
+  .totals .row .label { color: var(--muted-2); font-weight: 600; }
+  .totals .row.cost {
+    font-size: 14px; font-weight: 700; color: var(--text); margin-top: 6px;
+    padding: 8px 10px; background: var(--accent); border: var(--border-width) solid var(--border);
+    border-radius: var(--radius-sm); box-shadow: var(--shadow-sm);
+    margin-left: -6px; margin-right: -6px;
+  }
+  .totals .row.cost .label { color: var(--text); }
+
+  .result {
+    margin-top: 0;
+    background: var(--panel);
+    border: var(--border-width) solid var(--border); border-left: 5px solid var(--accent);
+    padding: 24px 28px; border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    animation: result-in var(--t-spring) both;
+  }
+  @keyframes result-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .result.win  { border-left-color: var(--good); background: var(--good-soft); }
+  .result.lose { border-left-color: var(--bad); background: var(--bad-soft); }
+  .result h3 { margin: 0 0 14px; font-size: 18px; letter-spacing: -0.02em; font-weight: 700; }
+  .result .score-big { font-size: 64px; font-family: var(--mono); font-weight: 700; line-height: 1; letter-spacing: -0.03em; }
+  .result .score-big.good { color: var(--good); }
+  .result .score-big.mid  { color: #ca8a04; }
+  .result .score-big.bad  { color: var(--bad); }
+  .result .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; font-family: var(--mono); font-size: 14px; }
+  .result .compare > div { background: var(--panel); padding: 14px 16px; border-radius: var(--radius-sm); border: var(--border-width) solid var(--border); box-shadow: var(--shadow-sm); }
+  .result .compare .label { color: var(--muted-2); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; font-weight: 700; }
+  .result .why { font-size: 14px; color: var(--text); margin: 8px 0 12px; line-height: 1.6; font-weight: 500; }
+  .result .why strong { color: var(--text); font-weight: 700; background: var(--accent); padding: 0 4px; border-radius: 2px; }
+  .result .phase-list { list-style: none; padding: 0; font-size: 13px; line-height: 1.6; margin: 0; }
+  .result .phase-list li { padding: 8px 0; border-bottom: 2px dashed var(--border-soft); font-weight: 500; }
+  .result .phase-list li:last-child { border-bottom: 0; }
+  .result .phase-list .ok   { color: var(--good); font-weight: 700; }
+  .result .phase-list .bad  { color: var(--bad); font-weight: 700; }
+
+  .gameover {
+    text-align: center; padding: 56px 24px;
+    background: var(--panel);
+    border: var(--border-width) solid var(--border); border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    animation: result-in var(--t-spring) both;
+  }
+  .gameover h2 { font-size: 36px; margin: 0 0 16px; letter-spacing: -0.03em; font-weight: 700; }
+  .gameover .final-score { font-size: 96px; font-family: var(--mono); font-weight: 700; line-height: 1; letter-spacing: -0.04em; }
+  .gameover .final-score.good { color: var(--good); }
+  .gameover .final-score.mid  { color: #ca8a04; }
+  .gameover .final-score.bad  { color: var(--bad); }
+  .gameover .summary { color: var(--muted); margin: 20px auto; max-width: 600px; font-size: 15px; line-height: 1.7; font-weight: 500; }
+  .gameover .summary strong { color: var(--text); font-weight: 700; }
+
+  .intro {
+    background: var(--panel);
+    border: var(--border-width) solid var(--border); border-radius: var(--radius-lg);
+    padding: 36px 40px; box-shadow: var(--shadow-md);
+    animation: result-in var(--t-spring) both;
+  }
+  .intro h2 { margin-top: 0; font-size: 32px; letter-spacing: -0.03em; line-height: 1.15; font-weight: 700; }
+  .intro p { color: var(--muted); font-size: 15px; line-height: 1.7; font-weight: 500; }
+  .intro ul { color: var(--muted); font-size: 14px; line-height: 1.8; padding-left: 20px; font-weight: 500; }
+  .intro ul li { margin-bottom: 6px; }
+  .intro strong { color: var(--text); font-weight: 700; }
+  .intro em { color: var(--text); font-style: normal; font-weight: 600; }
+  .real-data-callout {
+    margin: 20px 0; padding: 14px 18px;
+    background: var(--bg); border: var(--border-width) solid var(--border);
+    border-radius: var(--radius); font-size: 13px; line-height: 1.6;
+    box-shadow: var(--shadow-sm); font-weight: 500;
+  }
+  .real-data-callout .head {
+    color: var(--text); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+    font-weight: 700; margin-bottom: 6px;
+    background: var(--accent); display: inline-block; padding: 2px 8px; border-radius: 3px;
+    border: 1px solid var(--border);
+  }
+
+  /* Subagent explainer modal-card */
+  .explain-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100;
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+  }
+  .explain-card {
+    background: var(--panel); border: var(--border-width) solid var(--border); border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    padding: 28px; max-width: 720px; width: 100%; max-height: 90vh; overflow-y: auto;
+  }
+  .explain-card h2 { margin-top: 0; color: var(--text); font-weight: 700; letter-spacing: -0.02em; }
+  .explain-card h3 {
+    color: var(--text); font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em;
+    margin-top: 22px; font-weight: 700;
+    border-bottom: var(--border-width) solid var(--border); padding-bottom: 6px;
+  }
+  .explain-card .close {
+    position: absolute; top: 18px; right: 18px; cursor: pointer;
+    background: var(--bg); border: var(--border-width) solid var(--border); color: var(--text);
+    font-size: 18px; width: 32px; height: 32px; border-radius: var(--radius-sm);
+    display: flex; align-items: center; justify-content: center; font-weight: 700;
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--t-fast), box-shadow var(--t-fast);
+  }
+  .explain-card .close:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--border); }
+  .diagram {
+    display: grid; grid-template-columns: 1fr 28px 1fr; gap: 12px; align-items: stretch;
+    margin: 14px 0; font-family: var(--mono); font-size: 12px;
+  }
+  .diagram .box {
+    background: var(--bg); border: var(--border-width) solid var(--border);
+    border-radius: var(--radius); padding: 10px 12px; box-shadow: var(--shadow-sm);
+  }
+  .diagram .box.parent { border-color: var(--border); background: var(--accent-soft); }
+  .diagram .box.subagent { border-color: var(--border); background: var(--purple-soft); }
+  .diagram .box .head { color: var(--text); font-size: 11px; margin-bottom: 4px; text-transform: uppercase; font-weight: 700; }
+  .diagram .arrow { display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; font-weight: 600; }
+  .diagram .arrow .down { font-size: 16px; }
+  .diagram .row { padding: 2px 0; color: var(--muted); font-weight: 500; }
+  .diagram .row.crossing { color: var(--text); font-weight: 700; }
+  .diagram .row.kept { color: var(--muted-2); }
+  .pill {
+    display: inline-block; padding: 2px 8px; border-radius: var(--radius-sm);
+    font-family: var(--mono); font-size: 10px; font-weight: 700;
+    background: var(--bg); border: var(--border-width) solid var(--border); color: var(--muted);
+    box-shadow: var(--shadow-sm);
+  }
+  .pill.parent { color: var(--text); background: var(--accent-soft); border-color: var(--border); }
+  .pill.subagent { color: var(--purple); background: var(--purple-soft); border-color: var(--purple); }
+
+  /* ---- Icon buttons ---- */
+  .model-btn, .action-btn {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px; min-width: 84px; padding: 14px 12px;
+  }
+  .btn-icon {
+    font-size: 28px; line-height: 1;
+    transition: transform 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    display: block;
+  }
+  .btn-label { font-weight: 700; font-size: 12px; letter-spacing: -0.01em; }
+  .pick-btn:hover .btn-icon { transform: scale(1.2) rotate(-8deg); }
+  .pick-btn.selected .btn-icon {
+    transform: scale(1.05);
+    animation: icon-bounce 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes icon-bounce {
+    0%   { transform: scale(0.7) rotate(0deg); }
+    60%  { transform: scale(1.25) rotate(-10deg); }
+    100% { transform: scale(1.05) rotate(0deg); }
+  }
+
+  /* ---- Token bar swatch grow animation ---- */
+  .token-bar .swatch {
+    transform-origin: left center;
+    animation: swatch-grow 0.45s ease-out both;
+  }
+  @keyframes swatch-grow {
+    from { transform: scaleX(0); opacity: 0; }
+    to   { transform: scaleX(1); opacity: 1; }
+  }
+
+  /* ---- Phase card stagger entrance ---- */
+  .phase-card {
+    animation: slide-up 0.28s ease-out both;
+  }
+  .phase-card:nth-child(1) { animation-delay: 0ms; }
+  .phase-card:nth-child(2) { animation-delay: 80ms; }
+  .phase-card:nth-child(3) { animation-delay: 160ms; }
+  @keyframes slide-up {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ---- Shake animation (quality fail) ---- */
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    15%  { transform: translateX(-7px) rotate(-1deg); }
+    30%  { transform: translateX(7px) rotate(1deg); }
+    45%  { transform: translateX(-5px); }
+    60%  { transform: translateX(5px); }
+    75%  { transform: translateX(-2px); }
+    90%  { transform: translateX(2px); }
+  }
+  .shake { animation: shake 0.55s ease-out; }
+
+  /* ---- Stars ---- */
+  .score-row { display: flex; align-items: baseline; gap: 16px; margin-bottom: 16px; }
+  .stars { font-size: 28px; letter-spacing: 4px; animation: stars-pop 0.5s 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+  .stars-gold   { color: #f5c842; text-shadow: 0 2px 0 #000; }
+  .stars-silver { color: #94a3b8; text-shadow: 0 2px 0 #000; }
+  .stars-dim    { color: #d1d5db; }
+  @keyframes stars-pop {
+    from { transform: scale(0) rotate(-20deg); opacity: 0; }
+    to   { transform: scale(1) rotate(0deg);   opacity: 1; }
+  }
+
+  /* ---- Result top row ---- */
+  .result-top-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
+  .result-top-row h3 { margin: 0; font-size: 18px; letter-spacing: -0.02em; font-weight: 700; }
+
+  /* ---- Score denominator ---- */
+  .score-denom { font-size: 20px; color: var(--muted-2); font-weight: 500; }
+
+  /* ---- Perfect badge ---- */
+  .perfect-badge {
+    display: inline-block; background: var(--accent); color: var(--text);
+    border: 2px solid var(--border); border-radius: var(--radius-sm);
+    padding: 4px 12px; font-size: 12px; font-weight: 800; letter-spacing: 0.08em;
+    box-shadow: var(--shadow-sm);
+    animation: badge-pop 0.4s 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+  .fail-badge {
+    display: inline-block; background: var(--bad); color: #fff;
+    border: 2px solid var(--border); border-radius: var(--radius-sm);
+    padding: 4px 12px; font-size: 12px; font-weight: 800; letter-spacing: 0.06em;
+    box-shadow: var(--shadow-sm);
+    animation: badge-pop 0.3s 0.15s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+  @keyframes badge-pop {
+    from { transform: scale(0.5) rotate(10deg); opacity: 0; }
+    to   { transform: scale(1)   rotate(0deg);  opacity: 1; }
+  }
+
+  /* ---- Gameover stars ---- */
+  .gameover-stars {
+    font-size: 48px; letter-spacing: 8px; display: block; margin-bottom: 8px;
+    animation: stars-pop 0.6s 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+
+  /* ---- Confetti ---- */
+  .gameover { position: relative; overflow: hidden; }
+  .confetti-piece {
+    position: absolute; width: 10px; height: 10px;
+    background: hsl(var(--hue), 80%, 55%);
+    border: 1px solid #000;
+    top: -20px;
+    left: calc(var(--i) * 5.88%);
+    animation: confetti-fall calc(1.2s + var(--i) * 0.07s) calc(var(--i) * 0.06s) ease-in both;
+    border-radius: calc(var(--i) % 2 * 50%);
+  }
+  @keyframes confetti-fall {
+    0%   { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+    80%  { opacity: 1; }
+    100% { transform: translateY(420px) rotate(calc(var(--i) * 30deg)); opacity: 0; }
+  }
+  </style>
+</head>
+<body>
+  <header class="scoreboard">
+    <h1>$ AI Agent Cost Game</h1>
+    <span class="score-pill"><span class="label">round</span><span class="value" id="hud-round">—</span></span>
+    <span class="score-pill"><span class="label">score</span><span class="value" id="hud-score">—</span></span>
+    <span class="score-pill"><span class="label">bill so far</span><span class="value" id="hud-bill">—</span></span>
+    <span class="score-pill"><span class="label">optimal</span><span class="value good" id="hud-optimal">—</span></span>
+    <button class="help-link" id="help-btn">? How subagents work</button>
+  </header>
+  <main id="root">
+    <p>Loading…</p>
+  </main>
+  <div id="overlay-root"></div>
+  <footer>
+    <a href="sources.html">Sources</a> · Real Anthropic pricing, verified 2026-05-06
+  </footer>
+
+  <script>
+    'use strict';
+
+    // ---------- Pricing constants ----------
+    // Source: https://platform.claude.com/docs/en/about-claude/pricing (verified 2026-05-06)
+    const PRICES = {
+      'opus-4-7':   { label: 'Opus 4.7',   short: 'Opus',   icon: '👑', input: 5, output: 25, cacheWrite5m: 6.25, cacheWrite1h: 10, cacheRead: 0.50 },
+      'sonnet-4-6': { label: 'Sonnet 4.6', short: 'Sonnet', icon: '⚡', input: 3, output: 15, cacheWrite5m: 3.75, cacheWrite1h: 6,  cacheRead: 0.30 },
+      'haiku-4-5':  { label: 'Haiku 4.5',  short: 'Haiku',  icon: '🐇', input: 1, output: 5,  cacheWrite5m: 1.25, cacheWrite1h: 2,  cacheRead: 0.10 },
+    };
+    const TIER = { 'haiku-4-5': 0, 'sonnet-4-6': 1, 'opus-4-7': 2 };
+
+    const ACTIONS = {
+      'main-thread': { short: 'Main thread',     icon: '🧵', desc: 'Direct read on parent. The full context re-bills on every turn.' },
+      'subagent':    { short: 'Subagent (Haiku)', icon: '🤖', desc: 'Delegate to a fresh-context Haiku worker. Returns a summary.' },
+      'cache':       { short: 'Reuse w/ cache',  icon: '♻️',  desc: 'Long stable session — prompt caching kicks in (1.25× write, 0.1× reads).' },
+    };
+
+    // ---------- Tickets (multi-phase) ----------
+    // Each phase has:
+    //   contextNeeded: 'parent' (must run on main thread; subagent has no parent context) | 'isolated' (any action OK)
+    //   parallelizable: optional. true means subagent fan-out is the natural fit (won't change cost in this model
+    //   but informs the optimal pick in tied scenarios).
+    const TICKETS = [
+      {
+        id: 't1', label: 'Find files matching a pattern',
+        brief: '"List all .ts files under packages/ that import zod"',
+        difficulty: 'Mechanical',
+        phases: [
+          { name: 'Search', contextNeeded: 'isolated', contextTokens: 8000, turns: 1, output: 200, minTier: 'haiku-4-5' },
+        ],
+      },
+      {
+        id: 't2', label: 'Fix a typo in a string literal',
+        brief: '"Change recieve to receive in src/auth.ts"',
+        difficulty: 'Mechanical',
+        phases: [
+          { name: 'Edit', contextNeeded: 'isolated', contextTokens: 5000, turns: 1, output: 300, minTier: 'haiku-4-5' },
+        ],
+      },
+      {
+        id: 't3', label: 'Summarize a 5k-token RFC',
+        brief: '"Summarize this doc into 5 bullets"',
+        difficulty: 'Mechanical',
+        phases: [
+          { name: 'Summarize', contextNeeded: 'isolated', contextTokens: 5000, turns: 1, output: 250, minTier: 'haiku-4-5' },
+        ],
+      },
+      {
+        id: 't4', label: 'Debug a flaky test',
+        brief: '"The auth test fails ~10% of the time. Find why and fix it."',
+        difficulty: 'Routine · multi-phase',
+        phases: [
+          { name: 'Investigate (read repo + logs)', contextNeeded: 'isolated', contextTokens: 50000, turns: 4, output: 800, minTier: 'sonnet-4-6' },
+          { name: 'Apply fix',                       contextNeeded: 'parent',   contextTokens: 5000,  turns: 2, output: 600, minTier: 'sonnet-4-6' },
+        ],
+      },
+      {
+        id: 't5', label: 'Architecture review',
+        brief: '"Compare LRU vs ARC vs TLRU caching for the hot path. Long discussion."',
+        difficulty: 'Hard reasoning',
+        phases: [
+          { name: 'Reason and compare', contextNeeded: 'parent', contextTokens: 30000, turns: 8, output: 1200, minTier: 'opus-4-7' },
+        ],
+      },
+      {
+        id: 't6', label: 'Refactor 200 files: moment → dayjs',
+        brief: '"Plan the migration, find call sites, then apply across the monorepo."',
+        difficulty: 'Routine · multi-phase · parallel',
+        phases: [
+          { name: 'Plan migration & equivalents map', contextNeeded: 'parent',   contextTokens: 5000,   turns: 3, output: 800,  minTier: 'sonnet-4-6' },
+          { name: 'Find all call sites',              contextNeeded: 'isolated', contextTokens: 100000, turns: 1, output: 1500, minTier: 'haiku-4-5'  },
+          { name: 'Apply migration (4 parallel)',     contextNeeded: 'isolated', contextTokens: 25000,  turns: 3, output: 1000, minTier: 'sonnet-4-6', parallelizable: true },
+        ],
+      },
+      {
+        id: 't7', label: 'Long debugging session',
+        brief: '"Memory leak. Trace through this 30k-token log over 15 turns."',
+        difficulty: 'Routine',
+        phases: [
+          { name: 'Iterative tracing', contextNeeded: 'parent', contextTokens: 30000, turns: 15, output: 700, minTier: 'sonnet-4-6' },
+        ],
+      },
+      {
+        id: 't8', label: 'One-off complex reasoning',
+        brief: '"Design a sharding scheme. One careful answer."',
+        difficulty: 'Hard reasoning',
+        phases: [
+          { name: 'Design', contextNeeded: 'isolated', contextTokens: 20000, turns: 1, output: 3000, minTier: 'opus-4-7' },
+        ],
+      },
+      {
+        id: 't9', label: 'Code review of a medium PR',
+        brief: '"Read this 15k diff, then discuss with the author."',
+        difficulty: 'Routine · multi-phase',
+        phases: [
+          { name: 'Read & analyze diff', contextNeeded: 'isolated', contextTokens: 15000, turns: 1, output: 1000, minTier: 'sonnet-4-6' },
+          { name: 'Discuss with author', contextNeeded: 'parent',   contextTokens: 1000,  turns: 3, output: 500,  minTier: 'sonnet-4-6' },
+        ],
+      },
+      {
+        id: 't10', label: 'Onboarding to a new monorepo',
+        brief: '"Read 200k tokens of code. Then plan your first PR."',
+        difficulty: 'Multi-phase · parallel',
+        phases: [
+          { name: 'Map the codebase (4 areas in parallel)', contextNeeded: 'isolated', contextTokens: 200000, turns: 1, output: 2500, minTier: 'haiku-4-5', parallelizable: true },
+          { name: 'Plan first PR',                          contextNeeded: 'parent',   contextTokens: 5000,   turns: 4, output: 800,  minTier: 'sonnet-4-6' },
+        ],
+      },
+    ];
+
+    // ---------- Cost model ----------
+    // Tuned to match real Claude Code / Cursor agent sessions:
+    //   - Tool-use: every turn brings ~3-5 tool calls (Read, Grep, Edit) returning ~3.5k tokens of results.
+    //   - Subagent overhead: a real general-purpose subagent's system prompt + tool defs is 15-20k tokens.
+    //     (Earlier draft used 6k which made small-task subagents look better than they are.)
+    const SYS_TOOL_OVERHEAD    = 7500;
+    const USER_MSG_TOKENS      = 100;
+    const TOOL_RESULT_PER_TURN = 3500;   // realistic per-turn tool result tokens
+    const SUBAGENT_OVERHEAD    = 16000;  // realistic subagent system+tools overhead
+
+    function summarySize(contextTokens) {
+      return Math.max(1500, Math.min(3000, Math.floor(contextTokens * 0.04)));
+    }
+
+    function modelMeetsTier(model, minTier) { return TIER[model] >= TIER[minTier]; }
+
+    // Compute cost for a single phase under (model, action). Returns {total, tokenBars}.
+    function computePhase(phase, model, action) {
+      const M = PRICES[model];
+      const turns = phase.turns;
+      const ctx   = phase.contextTokens;
+      const out   = phase.output;
+      const tokenBars = [];
+      let inputTokens  = 0;
+      let outputTokens = 0;
+      let cacheReadCost  = 0;
+      let cacheWriteCost = 0;
+      let subagentCost   = 0;
+
+      // Per-turn growing history: prior assistant outputs AND prior tool results re-bill every turn.
+      const histPerTurn = out + TOOL_RESULT_PER_TURN;
+
+      if (action === 'main-thread') {
+        for (let t = 0; t < turns; t++) {
+          inputTokens  += SYS_TOOL_OVERHEAD + ctx + (t * histPerTurn) + USER_MSG_TOKENS + TOOL_RESULT_PER_TURN;
+          outputTokens += out;
+        }
+        tokenBars.push({ kind: 'system',  name: `system + tools × ${turns}`,                count: SYS_TOOL_OVERHEAD * turns });
+        tokenBars.push({ kind: 'context', name: `context (${(ctx/1000).toFixed(0)}k) × ${turns} re-bills`, count: ctx * turns });
+        tokenBars.push({ kind: 'context', name: `tool results × ${turns} (Read/Grep/etc)`,   count: TOOL_RESULT_PER_TURN * turns });
+        if (turns > 1) tokenBars.push({ kind: 'history', name: 'accumulated history (output + tool results)', count: Math.floor((turns - 1) * turns / 2) * histPerTurn });
+        tokenBars.push({ kind: 'user',    name: `user msgs × ${turns}`,                       count: USER_MSG_TOKENS * turns });
+        tokenBars.push({ kind: 'output',  name: `output × ${turns}`,                          count: out * turns });
+      } else if (action === 'subagent') {
+        const summary = summarySize(ctx);
+        const subInput  = SUBAGENT_OVERHEAD + 250 + ctx;
+        const subOutput = 800 + summary;
+        subagentCost = (subInput * PRICES['haiku-4-5'].input + subOutput * PRICES['haiku-4-5'].output) / 1_000_000;
+        for (let t = 0; t < turns; t++) {
+          inputTokens  += SYS_TOOL_OVERHEAD + summary + (t * histPerTurn) + USER_MSG_TOKENS + TOOL_RESULT_PER_TURN;
+          outputTokens += out;
+        }
+        tokenBars.push({ kind: 'subagent', name: `Haiku subagent (${(SUBAGENT_OVERHEAD/1000).toFixed(0)}k overhead + ${(ctx/1000).toFixed(0)}k read)`, count: subInput, sub: true });
+        tokenBars.push({ kind: 'system',   name: `main: system + tools × ${turns}`,           count: SYS_TOOL_OVERHEAD * turns });
+        tokenBars.push({ kind: 'summary',  name: `main: subagent summary × ${turns}`,         count: summary * turns });
+        tokenBars.push({ kind: 'context',  name: `main: tool results × ${turns}`,             count: TOOL_RESULT_PER_TURN * turns });
+        if (turns > 1) tokenBars.push({ kind: 'history', name: 'accumulated history (output + tool results)', count: Math.floor((turns - 1) * turns / 2) * histPerTurn });
+        tokenBars.push({ kind: 'user',     name: `user msgs × ${turns}`,                      count: USER_MSG_TOKENS * turns });
+        tokenBars.push({ kind: 'output',   name: `output × ${turns}`,                         count: out * turns });
+      } else if (action === 'cache') {
+        cacheWriteCost = (SYS_TOOL_OVERHEAD + ctx) * M.cacheWrite5m / 1_000_000;
+        inputTokens  += USER_MSG_TOKENS + TOOL_RESULT_PER_TURN;
+        outputTokens += out;
+        for (let t = 1; t < turns; t++) {
+          cacheReadCost += (SYS_TOOL_OVERHEAD + ctx) * M.cacheRead / 1_000_000;
+          inputTokens  += (t * histPerTurn) + USER_MSG_TOKENS + TOOL_RESULT_PER_TURN;
+          outputTokens += out;
+        }
+        tokenBars.push({ kind: 'cache',   name: `cache write (${(ctx/1000).toFixed(0)}k) @ 1.25×`,    count: SYS_TOOL_OVERHEAD + ctx });
+        if (turns > 1) tokenBars.push({ kind: 'cache', name: `cache reads × ${turns - 1} @ 0.1×`,     count: (SYS_TOOL_OVERHEAD + ctx) * (turns - 1) });
+        tokenBars.push({ kind: 'context', name: `tool results × ${turns}`,                             count: TOOL_RESULT_PER_TURN * turns });
+        if (turns > 1) tokenBars.push({ kind: 'history', name: 'accumulated history (output + tool results)', count: Math.floor((turns - 1) * turns / 2) * histPerTurn });
+        tokenBars.push({ kind: 'user',    name: `user msgs × ${turns}`,                                count: USER_MSG_TOKENS * turns });
+        tokenBars.push({ kind: 'output',  name: `output × ${turns}`,                                   count: out * turns });
+      }
+
+      const inputCost  = inputTokens  * M.input  / 1_000_000;
+      const outputCost = outputTokens * M.output / 1_000_000;
+      const total = inputCost + outputCost + cacheReadCost + cacheWriteCost + subagentCost;
+      return { total, tokenBars };
+    }
+
+    // Quality check: subagent on a parent-context phase = quality fail
+    function isQualityFail(phase, model, action) {
+      if (!modelMeetsTier(model, phase.minTier)) return { fail: true, reason: 'tier' };
+      if (phase.contextNeeded === 'parent' && action === 'subagent') {
+        return { fail: true, reason: 'parent-context' };
+      }
+      return { fail: false };
+    }
+
+    // Best strategy per phase, only considering picks that are NOT quality fails.
+    function bestPhaseStrategy(phase) {
+      let best = { cost: Infinity, model: null, action: null };
+      for (const m of Object.keys(PRICES)) {
+        for (const a of Object.keys(ACTIONS)) {
+          if (isQualityFail(phase, m, a).fail) continue;
+          const c = computePhase(phase, m, a).total;
+          if (c < best.cost) best = { cost: c, model: m, action: a };
+        }
+      }
+      return best;
+    }
+
+    function bestTicketStrategy(ticket) {
+      let totalCost = 0;
+      const picks = [];
+      for (const phase of ticket.phases) {
+        const b = bestPhaseStrategy(phase);
+        totalCost += b.cost;
+        picks.push({ model: b.model, action: b.action });
+      }
+      return { totalCost, picks };
+    }
+
+    function whyOptimalForPhase(phase, optimal) {
+      const reasons = [];
+      if (optimal.action === 'subagent') {
+        reasons.push(`A Haiku subagent reads the ${(phase.contextTokens/1000).toFixed(0)}k once and returns a small summary; the parent never re-bills the big context.`);
+      } else {
+        if (phase.contextNeeded === 'parent') reasons.push(`This phase needs the conversation history, so it has to live on the parent thread.`);
+        else if (phase.turns === 1)            reasons.push(`Only ${phase.turns} turn — no bloat to avoid, so direct read is cheapest.`);
+        else                                    reasons.push(`Direct read on parent is cheapest at this turn count.`);
+      }
+      if (optimal.model === 'haiku-4-5')     reasons.push(`Haiku 4.5 is 5× cheaper than Opus on input and adequate for this work.`);
+      else if (optimal.model === 'sonnet-4-6') reasons.push(`Sonnet 4.6 is the right reasoning tier without paying Opus prices.`);
+      else                                     reasons.push(`Opus 4.7 earns its premium when the task is genuinely complex.`);
+      return reasons.join(' ');
+    }
+
+    function formatUSD(n) {
+      if (n < 0.005) return `$${n.toFixed(4)}`;
+      if (n < 1)     return `$${n.toFixed(3)}`;
+      return `$${n.toFixed(2)}`;
+    }
+
+    // ---------- Self-tests ----------
+    (function selfTests() {
+      let p = 0, t = 0;
+      const eq = (a, b, label, eps = 1e-6) => {
+        t++; if (Math.abs(a - b) < eps) p++; else console.warn(`SELF-TEST FAIL: ${label} — got ${a}, expected ${b}`);
+      };
+      eq(PRICES['opus-4-7'].input, 5, 'opus input price');
+      eq(PRICES['sonnet-4-6'].output, 15, 'sonnet output price');
+      eq(PRICES['opus-4-7'].cacheRead / PRICES['opus-4-7'].input, 0.1, 'cache read multiplier 0.1×');
+      // Subagent on parent-context phase is a quality fail
+      const parentPhase = { contextNeeded: 'parent', contextTokens: 5000, turns: 3, output: 500, minTier: 'sonnet-4-6' };
+      eq(isQualityFail(parentPhase, 'sonnet-4-6', 'subagent').fail, true, 'subagent on parent phase = quality fail');
+      eq(isQualityFail(parentPhase, 'sonnet-4-6', 'main-thread').fail, false, 'main-thread on parent phase = OK');
+      eq(isQualityFail({ contextNeeded: 'isolated', minTier: 'opus-4-7' }, 'haiku-4-5', 'main-thread').fail, true, 'haiku on opus-only task = tier fail');
+      // Big repo: subagent strictly cheaper than naive opus main-thread
+      const bigPhase = TICKETS[5].phases[2];
+      const naive = computePhase(bigPhase, 'opus-4-7', 'main-thread').total;
+      const smart = computePhase(bigPhase, 'haiku-4-5', 'subagent').total;
+      eq(smart < naive, true, 'subagent + haiku cheaper than opus main-thread on big repo');
+      // bestPhaseStrategy returns a valid combo
+      const b = bestPhaseStrategy(TICKETS[3].phases[0]);
+      eq(typeof b.model === 'string' && typeof b.action === 'string', true, 'bestPhaseStrategy yields a combo');
+      console.log(`Self-tests: ${p}/${t} passed`);
+    })();
+
+    // ---------- Game state ----------
+    const TOTAL_ROUNDS = TICKETS.length;
+    const state = {
+      view: 'intro',           // 'intro' | 'play' | 'result' | 'gameover'
+      round: 0,
+      picks: [],               // array of { model, action } per phase
+      runResult: null,
+      totalCost: 0,
+      totalOptimal: 0,
+      perRoundScores: [],
+      explainOpen: false,
+    };
+
+    function setState(patch) { Object.assign(state, patch); render(); }
+    function ensurePicks(ticket) {
+      if (state.picks.length !== ticket.phases.length) {
+        state.picks = ticket.phases.map(() => ({ model: null, action: null }));
+      }
+    }
+
+    // ---------- Renderers ----------
+    function render() {
+      const root = document.getElementById('root');
+      if      (state.view === 'intro')    root.innerHTML = renderIntro();
+      else if (state.view === 'play')     root.innerHTML = renderPlay();
+      else if (state.view === 'result')   root.innerHTML = renderResult();
+      else if (state.view === 'gameover') root.innerHTML = renderGameover();
+      updateScoreboard();
+      renderOverlay();
+      bindEvents();
+      afterRender();
+    }
+
+    function updateScoreboard() {
+      const r  = document.getElementById('hud-round');
+      const s  = document.getElementById('hud-score');
+      const b  = document.getElementById('hud-bill');
+      const op = document.getElementById('hud-optimal');
+      r.textContent = state.view === 'intro' ? `0/${TOTAL_ROUNDS}` : `${Math.min(state.round + 1, TOTAL_ROUNDS)}/${TOTAL_ROUNDS}`;
+      const avg = state.perRoundScores.length
+        ? Math.round(state.perRoundScores.reduce((a, b) => a + b, 0) / state.perRoundScores.length) : null;
+      s.textContent = avg === null ? '—' : `${avg}`;
+      s.className = 'value' + (avg === null ? '' : avg >= 90 ? ' good' : avg < 70 ? ' bad' : '');
+      b.textContent  = state.totalCost    === 0 ? '—' : formatUSD(state.totalCost);
+      op.textContent = state.totalOptimal === 0 ? '—' : formatUSD(state.totalOptimal);
+    }
+
+    function renderIntro() {
+      return `
+        <div class="intro">
+          <h2>How fast can you burn money on AI coding agents?</h2>
+          <p>Whether you drive Claude Code, Cursor, Aider, or roll your own — the math under the hood is the same. ${TOTAL_ROUNDS} real coding tasks ahead. For each one, you compose a <strong>plan</strong>: pick a model + execution strategy <em>per phase</em>. Some tickets are single-phase (one decision); some are multi-phase (plan on parent → delegate isolated work → integrate).</p>
+          <p>We compute the actual bill against the optimal plan. Real Anthropic API pricing (the rates Cursor and Claude Code both charge through). Real subagent semantics.</p>
+          <ul>
+            <li><strong>Score = (optimal / yours) × 100</strong>, capped at 100. Picking below the difficulty tier or breaking subagent rules takes a heavy hit (25/100) — the bill looks small but you'd throw away the answer.</li>
+            <li><strong>Subagents</strong> work isolated — they can't see the parent's conversation history. Use them for big reads and parallel work; don't use them for steps that depend on prior chat.</li>
+            <li>Hover any token block in the Inspector to see what it is and why it costs what it does.</li>
+          </ul>
+          <div class="run-row">
+            <button class="primary" data-action="start">▶ Start playing</button>
+            <button class="ghost" data-action="open-explain">? How subagents work</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderPlay() {
+      const ticket = TICKETS[state.round];
+      ensurePicks(ticket);
+      const allPicked = state.picks.every(p => p.model && p.action);
+
+      const phaseCards = ticket.phases.map((phase, i) => renderPhaseCard(phase, i)).join('');
+      const previewBars = allPicked ? state.picks.map((p, i) => ({
+        phaseName: ticket.phases[i].name,
+        run: computePhase(ticket.phases[i], p.model, p.action),
+        model: p.model,
+        action: p.action,
+      })) : null;
+      const previewTotal = previewBars ? previewBars.reduce((s, x) => s + x.run.total, 0) : 0;
+
+      return `
+        <div class="game">
+          <div>
+            <div class="ticket-card">
+              <div class="label">Ticket ${state.round + 1} of ${TOTAL_ROUNDS}</div>
+              <h2>${escapeHtml(ticket.label)}</h2>
+              <div class="brief">${escapeHtml(ticket.brief)}</div>
+              <div class="ticket-stats">
+                <span>Difficulty: <strong>${escapeHtml(ticket.difficulty)}</strong></span>
+                <span>Phases: <strong>${ticket.phases.length}</strong></span>
+              </div>
+            </div>
+
+            ${phaseCards}
+
+            <div class="run-row">
+              <button class="primary" data-action="run" ${allPicked ? '' : 'disabled'}>▶ Run this plan</button>
+              ${state.round > 0 ? `<button class="ghost" data-action="restart">↺ Start over</button>` : ''}
+              <button class="ghost" data-action="open-explain">? How subagents work</button>
+            </div>
+          </div>
+
+          <aside class="inspector">
+            <h3>Token Inspector</h3>
+            ${previewBars
+              ? renderPreviewStack(previewBars, previewTotal)
+              : '<p style="color:var(--muted);font-size:12px;font-style:italic">Pick a model and an action for every phase to preview the run.</p>'}
+          </aside>
+        </div>
+      `;
+    }
+
+    function renderPhaseCard(phase, idx) {
+      const pick = state.picks[idx];
+      const ctxBadge = phase.contextNeeded === 'parent'
+        ? '<span class="pill parent">needs parent context</span>'
+        : '<span class="pill subagent">isolated work — subagent OK</span>';
+      const parallelBadge = phase.parallelizable ? '<span class="pill" style="margin-left:6px">parallelizable</span>' : '';
+      const subagentDisabledHint = phase.contextNeeded === 'parent'
+        ? '<span class="ctx-warn"> (subagent ⇒ quality fail)</span>'
+        : '';
+
+      const modelButtons = Object.entries(PRICES).map(([k, m]) => {
+        const meets = modelMeetsTier(k, phase.minTier);
+        const sel = pick.model === k ? 'selected' : '';
+        return `<button class="pick-btn model-btn ${sel}" data-pick-phase="${idx}" data-pick-model="${k}" ${meets ? '' : 'title="Below required tier — quality fail"'}>
+          <span class="btn-icon">${m.icon}</span>
+          <span class="btn-label">${escapeHtml(m.short)}</span>
+          <span class="price">${meets ? '' : '⚠ · '}$${m.input}/M</span>
+        </button>`;
+      }).join('');
+
+      const actionButtons = Object.entries(ACTIONS).map(([k, a]) => {
+        const sel = pick.action === k ? 'selected' : '';
+        const warn = (phase.contextNeeded === 'parent' && k === 'subagent') ? ' title="Will quality-fail: subagent has no parent context"' : '';
+        return `<button class="pick-btn action-btn ${sel}" data-pick-phase="${idx}" data-pick-action="${k}"${warn}>
+          <span class="btn-icon">${a.icon}</span>
+          <span class="btn-label">${escapeHtml(a.short)}</span>
+        </button>`;
+      }).join('');
+
+      return `
+        <div class="phase-card">
+          <div class="phase-head">
+            <span class="phase-num">PHASE ${idx + 1}</span>
+            <span class="phase-name">${escapeHtml(phase.name)}</span>
+          </div>
+          <div class="phase-meta">
+            ~${(phase.contextTokens/1000).toFixed(0)}k context · ${phase.turns} turn${phase.turns === 1 ? '' : 's'} · ~${phase.output} output/turn ·
+            min tier: ${PRICES[phase.minTier].short}
+            ${ctxBadge} ${parallelBadge}${subagentDisabledHint}
+          </div>
+          <div class="pick-label">Model</div>
+          <div class="pick-row compact">${modelButtons}</div>
+          <div class="pick-label" style="margin-top:8px">Action</div>
+          <div class="pick-row compact">${actionButtons}</div>
+        </div>
+      `;
+    }
+
+    function renderPreviewStack(phases, totalCost) {
+      const blocks = phases.map(p => `
+        <div class="phase-block">
+          <div class="phase-title">${escapeHtml(p.phaseName)} — ${escapeHtml(PRICES[p.model].short)} · ${escapeHtml(ACTIONS[p.action].short)}</div>
+          ${renderTokenBars(p.run.tokenBars, p.model)}
+          <div class="totals" style="border-top:0;padding-top:4px;margin-top:4px">
+            <div class="row"><span class="label">phase cost</span><span>${formatUSD(p.run.total)}</span></div>
+          </div>
+        </div>
+      `).join('');
+      return `
+        ${blocks}
+        <div class="totals">
+          <div class="row cost"><span class="label">total cost</span><span>${formatUSD(totalCost)}</span></div>
+        </div>
+      `;
+    }
+
+    function renderTokenBars(bars, model) {
+      const max = Math.max(...bars.map(b => b.count), 1);
+      const m = PRICES[model];
+      return bars.map((b, i) => {
+        const pct = Math.max(2, Math.round((b.count / max) * 100));
+        return `<div class="token-bar" title="${escapeHtml(tooltipFor(b, m))}">
+          <span class="swatch ${b.kind}" style="width:${pct * 1.2}px;animation-delay:${i * 55}ms"></span>
+          <span class="name">${escapeHtml(b.name)}</span>
+          <span class="count">${b.count.toLocaleString()}</span>
+        </div>`;
+      }).join('');
+    }
+
+    function tooltipFor(bar, model) {
+      switch (bar.kind) {
+        case 'system':   return 'System prompt + tool definitions. Re-sent on every turn.';
+        case 'context':  return 'The thing you read (file, repo, doc). Each turn re-bills the entire context as input — bloat compounds.';
+        case 'summary':  return 'What the subagent gave back. Tiny compared to what it read. This is why subagents work.';
+        case 'history':  return 'Accumulated assistant output from prior turns. Re-sent every turn as part of the conversation.';
+        case 'user':     return 'Your follow-up messages. Small per turn but they add up.';
+        case 'output':   return `Model output. Costs ${(model.output / model.input).toFixed(0)}× more than input.`;
+        case 'subagent': return "Cost of the Haiku subagent's own run. It eats the big read in its own context window so the parent doesn't have to.";
+        default: return bar.name;
+      }
+    }
+
+    function renderResult() {
+      const r = state.runResult;
+      const ticket = TICKETS[state.round];
+      const scoreClass = r.score >= 90 ? 'good' : r.score >= 70 ? 'mid' : 'bad';
+      const cardClass  = r.qualityFails > 0 ? 'lose' : r.score >= 90 ? 'win' : r.score >= 60 ? '' : 'lose';
+      const isLast = state.round === TOTAL_ROUNDS - 1;
+      const headline = r.qualityFails > 0
+        ? `Quality fail in ${r.qualityFails} of ${ticket.phases.length} phase${ticket.phases.length === 1 ? '' : 's'}`
+        : `Round ${state.round + 1}: ${ticket.label}`;
+      const stars = r.qualityFails > 0 ? '☆☆☆' : r.score >= 90 ? '★★★' : r.score >= 70 ? '★★☆' : r.score >= 40 ? '★☆☆' : '☆☆☆';
+      const starsClass = r.score >= 90 && !r.qualityFails ? 'stars-gold' : r.score >= 70 ? 'stars-silver' : 'stars-dim';
+      const perfectBadge = r.score === 100 && !r.qualityFails ? '<span class="perfect-badge">PERFECT!</span>' : '';
+      const failBadge = r.qualityFails > 0 ? '<span class="fail-badge">⚠ FAIL</span>' : '';
+
+      const phaseList = ticket.phases.map((phase, i) => {
+        const pick = state.picks[i];
+        const opt  = r.optimalPicks[i];
+        const fail = r.phaseFails[i];
+        const yourTxt = `${PRICES[pick.model].short} · ${ACTIONS[pick.action].short}`;
+        const optTxt  = `${PRICES[opt.model].short} · ${ACTIONS[opt.action].short}`;
+        const cls = fail.fail ? 'bad' : (pick.model === opt.model && pick.action === opt.action ? 'ok' : '');
+        const msg = fail.fail
+          ? (fail.reason === 'parent-context'
+              ? ' — subagent picked but this phase needs parent context (quality fail)'
+              : ' — model below required tier (quality fail)')
+          : '';
+        return `<li class="${cls}"><strong>Phase ${i + 1}: ${escapeHtml(phase.name)}</strong> — you: ${yourTxt} · optimal: ${optTxt}${msg}</li>`;
+      }).join('');
+
+      return `
+        <div class="game">
+          <div>
+            <div class="result ${cardClass}">
+              <div class="result-top-row">
+                <h3>${escapeHtml(headline)}</h3>
+                ${failBadge}${perfectBadge}
+              </div>
+              <div class="score-row">
+                <div class="score-big ${scoreClass}"><span class="score-num">0</span><span class="score-denom"> / 100</span></div>
+                <span class="stars ${starsClass}">${stars}</span>
+              </div>
+              <div class="compare">
+                <div>
+                  <div class="label">Your bill</div>
+                  <div><strong>${formatUSD(r.yours)}</strong></div>
+                </div>
+                <div>
+                  <div class="label">Optimal</div>
+                  <div><strong style="color:var(--good)">${formatUSD(r.optimalCost)}</strong></div>
+                </div>
+              </div>
+              <p class="why"><strong>Why:</strong> ${escapeHtml(r.why)}</p>
+              <div class="pick-label" style="margin-top:14px">Phase-by-phase</div>
+              <ul class="phase-list">${phaseList}</ul>
+              <div class="run-row">
+                ${isLast
+                  ? '<button class="primary" data-action="finish">See your final score →</button>'
+                  : '<button class="primary" data-action="next">Next ticket →</button>'}
+                <button class="ghost" data-action="repeat">↺ Retry this ticket</button>
+                <button class="ghost" data-action="restart">⏮ Start over</button>
+                <button class="ghost" data-action="open-explain">? How subagents work</button>
+              </div>
+            </div>
+          </div>
+          <aside class="inspector">
+            <h3>Your run</h3>
+            ${r.previewPhases.map(p => `
+              <div class="phase-block">
+                <div class="phase-title">${escapeHtml(p.phaseName)} — ${escapeHtml(PRICES[p.model].short)} · ${escapeHtml(ACTIONS[p.action].short)}</div>
+                ${renderTokenBars(p.run.tokenBars, p.model)}
+                <div class="totals" style="border-top:0;padding-top:4px;margin-top:4px">
+                  <div class="row"><span class="label">phase cost</span><span>${formatUSD(p.run.total)}</span></div>
+                </div>
+              </div>
+            `).join('')}
+            <div class="totals">
+              <div class="row cost"><span class="label">total</span><span>${formatUSD(r.yours)}</span></div>
+            </div>
+          </aside>
+        </div>
+      `;
+    }
+
+    function renderGameover() {
+      const avg = state.perRoundScores.length
+        ? Math.round(state.perRoundScores.reduce((a, b) => a + b, 0) / state.perRoundScores.length) : 0;
+      const cls = avg >= 90 ? 'good' : avg >= 70 ? 'mid' : 'bad';
+      const verdict = avg >= 90 ? 'Cost-aware engineer.' : avg >= 70 ? "You'll learn fast." : 'Burning Anthropic stock.';
+      const overspend = state.totalCost - state.totalOptimal;
+      const gameoverStars = avg >= 90 ? '★★★' : avg >= 70 ? '★★☆' : '★☆☆';
+      const confettiPieces = avg >= 70
+        ? Array.from({ length: 18 }, (_, i) => `<span class="confetti-piece" style="--i:${i};--hue:${(i * 23) % 360}"></span>`).join('')
+        : '';
+      return `
+        <div class="gameover ${avg >= 70 ? 'celebrate' : ''}">
+          ${confettiPieces}
+          <div class="gameover-stars ${avg >= 90 ? 'stars-gold' : 'stars-silver'}">${gameoverStars}</div>
+          <h2>Game Over</h2>
+          <div class="final-score ${cls}"><span class="score-num">0</span><span class="score-denom"> / 100</span></div>
+          <p class="summary"><strong>${escapeHtml(verdict)}</strong></p>
+          <p class="summary">
+            You spent <strong style="color:var(--bad)">${formatUSD(state.totalCost)}</strong> across ${TOTAL_ROUNDS} tickets.<br>
+            Optimal play would have cost <strong style="color:var(--good)">${formatUSD(state.totalOptimal)}</strong>.<br>
+            That's <strong>${formatUSD(Math.max(0, overspend))}</strong> overspent.
+          </p>
+          <div class="run-row" style="justify-content:center">
+            <button class="primary" data-action="restart">▶ Play again</button>
+            <a href="sources.html" style="color:var(--link);font-size:14px;align-self:center;margin-left:12px">Sources →</a>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderOverlay() {
+      const root = document.getElementById('overlay-root');
+      if (!state.explainOpen) { root.innerHTML = ''; return; }
+      root.innerHTML = `
+        <div class="explain-overlay" data-action="close-explain">
+          <div class="explain-card" onclick="event.stopPropagation()">
+            <button class="close" data-action="close-explain" aria-label="close">×</button>
+            <h2>How subagents work</h2>
+            <p>A <strong>subagent</strong> is a fresh, isolated agent session that the parent spawns to do one specific task. It runs in its own context window with its own system prompt, its own tools, its own conversation history. Same idea in Claude Code's Task tool, Cursor's agent mode, Aider's sub-tasks — the framing is universal.</p>
+
+            <h3>What crosses the boundary</h3>
+            <div class="diagram">
+              <div class="box parent">
+                <div class="head">Parent (your session)</div>
+                <div class="row">conversation history</div>
+                <div class="row">your tools</div>
+                <div class="row">your system prompt</div>
+                <div class="row kept">files you read · prior turns</div>
+                <div class="row crossing">↓ your prompt to the subagent</div>
+              </div>
+              <div class="arrow"><span class="down">↓</span><span>spawn</span></div>
+              <div class="box subagent">
+                <div class="head">Subagent (fresh)</div>
+                <div class="row crossing">your prompt — the ONLY thing it sees from you</div>
+                <div class="row">subagent's own system prompt</div>
+                <div class="row">subagent's own tools (Read, Grep, etc.)</div>
+                <div class="row kept">…does its work in isolated context…</div>
+                <div class="row crossing">↑ returns ONE final message</div>
+              </div>
+            </div>
+            <p><strong>What gets sent down:</strong> only the prompt you write in the Task call. The subagent <em>cannot</em> see your conversation history, the files you already read, your prior tool results, or anything else from the parent.</p>
+            <p><strong>That means:</strong> whatever context the subagent needs to do its job has to either (a) be <em>in the prompt itself</em>, or (b) be something it can <em>fetch with its own tools</em> (it has Read, Grep, etc.). If you tell it "fix the bug" without naming the file, it has to go discover the file on its own — burning extra tokens.</p>
+            <p><strong>No prompt → no work.</strong> A subagent isn't autonomous. It does exactly what your prompt tells it to do. A vague prompt produces a vague answer. A precise prompt with file paths and line numbers gets a precise answer for cheap.</p>
+            <p><strong>What comes back up:</strong> a single text message — the subagent's final response. Every intermediate tool call, file read, and exploration step it took stays in its context window and is gone. The parent never sees them. That's the whole point: the parent doesn't get bloated with the subagent's working memory.</p>
+
+            <h3>When subagents win</h3>
+            <ul>
+              <li><strong>Big reads.</strong> Subagent reads 50k of source code; parent thread only ever sees the 2k summary. The 50k never bloats your main context.</li>
+              <li><strong>Parallel work.</strong> Spawn 4 subagents to map 4 areas of a codebase simultaneously. Each carries its own slice; the parent integrates the summaries.</li>
+              <li><strong>Cost ladder.</strong> Subagents can use Haiku even if your parent is on Sonnet — cheap delegation for simple subtasks.</li>
+            </ul>
+
+            <h3>When subagents lose</h3>
+            <ul>
+              <li><strong>Sequential / conversational work.</strong> If the next step depends on what was just discussed, a fresh subagent can't see that — it'll be confused.</li>
+              <li><strong>Tiny tasks.</strong> The overhead (system + tools + prompt + summary) outweighs the savings if the task is small or one-shot.</li>
+              <li><strong>Iterative debugging.</strong> If you need to bounce back and forth across many turns with a single accumulating context, stay on the parent.</li>
+            </ul>
+
+            <h3>The doctrinal quote</h3>
+            <p style="color:var(--muted);font-size:13px;border-left:3px solid var(--border);padding-left:12px">
+              "Each subagent runs in its own context window with a custom system prompt, specific tool access, and independent permissions … the subagent does that work in its own context and returns only the summary." — <a href="https://code.claude.com/docs/en/sub-agents" target="_blank" rel="noopener">Claude Code docs</a>
+            </p>
+
+            <div class="run-row">
+              <button class="primary" data-action="close-explain">Got it</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // ---------- Events ----------
+    function bindEvents() {
+      document.querySelectorAll('[data-pick-model]').forEach(el => {
+        el.addEventListener('click', () => {
+          const idx = parseInt(el.dataset.pickPhase, 10);
+          state.picks[idx].model = el.dataset.pickModel;
+          render();
+        });
+      });
+      document.querySelectorAll('[data-pick-action]').forEach(el => {
+        el.addEventListener('click', () => {
+          const idx = parseInt(el.dataset.pickPhase, 10);
+          state.picks[idx].action = el.dataset.pickAction;
+          render();
+        });
+      });
+      const onAction = (name, fn) => {
+        document.querySelectorAll(`[data-action="${name}"]`).forEach(el => el.addEventListener('click', fn));
+      };
+      onAction('start',         () => setState({ view: 'play', round: 0, picks: [] }));
+      onAction('run',           runRound);
+      onAction('next',          nextRound);
+      onAction('repeat',        repeatRound);
+      onAction('finish',        () => setState({ view: 'gameover' }));
+      onAction('restart',       restartGame);
+      onAction('open-explain',  () => setState({ explainOpen: true }));
+      onAction('close-explain', () => setState({ explainOpen: false }));
+
+      const helpBtn = document.getElementById('help-btn');
+      if (helpBtn) {
+        helpBtn.onclick = () => setState({ explainOpen: !state.explainOpen });
+      }
+    }
+
+    function runRound() {
+      const ticket = TICKETS[state.round];
+      const phaseFails = ticket.phases.map((phase, i) => isQualityFail(phase, state.picks[i].model, state.picks[i].action));
+      const yourPhases = ticket.phases.map((phase, i) => ({
+        phaseName: phase.name,
+        model: state.picks[i].model,
+        action: state.picks[i].action,
+        run: computePhase(phase, state.picks[i].model, state.picks[i].action),
+      }));
+      const yourCost = yourPhases.reduce((s, p) => s + p.run.total, 0);
+
+      const opt = bestTicketStrategy(ticket);
+      const optimalCost = opt.totalCost;
+
+      const qualityFails = phaseFails.filter(f => f.fail).length;
+      let score, why;
+      if (qualityFails > 0) {
+        score = 25;  // not zero — a wrong-tier answer still has *some* value, you just pay to redo it
+        const failPhases = phaseFails
+          .map((f, i) => f.fail ? `Phase ${i + 1} (${ticket.phases[i].name}): ${f.reason === 'parent-context' ? 'subagent has no parent context' : 'model below required tier'}` : null)
+          .filter(Boolean)
+          .join('; ');
+        why = `${failPhases}. The cheap-looking bill hides the real cost: a sloppy answer you'd throw away and re-run on a real config.`;
+      } else {
+        score = Math.max(1, Math.min(100, Math.round((optimalCost / yourCost) * 100)));
+        const reasons = ticket.phases.map((phase, i) => {
+          const pick = state.picks[i], optPick = opt.picks[i];
+          if (pick.model === optPick.model && pick.action === optPick.action) return null;
+          return `Phase ${i + 1}: ${whyOptimalForPhase(phase, optPick)}`;
+        }).filter(Boolean);
+        why = reasons.length > 0 ? reasons.join(' ') : 'You picked the optimal plan for every phase.';
+      }
+
+      setState({
+        view: 'result',
+        runResult: {
+          yours: yourCost,
+          optimalCost,
+          score,
+          why,
+          previewPhases: yourPhases,
+          phaseFails,
+          qualityFails,
+          optimalPicks: opt.picks,
+        },
+        totalCost:    state.totalCost    + yourCost,
+        totalOptimal: state.totalOptimal + optimalCost,
+        perRoundScores: [...state.perRoundScores, score],
+      });
+    }
+
+    function nextRound() {
+      setState({ view: 'play', round: state.round + 1, picks: [], runResult: null });
+    }
+    function repeatRound() {
+      // Undo the last round's scores so the retry replaces them
+      const prevScores = state.perRoundScores.slice(0, -1);
+      const prevCost    = state.totalCost    - state.runResult.yours;
+      const prevOptimal = state.totalOptimal - state.runResult.optimalCost;
+      setState({
+        view: 'play', picks: [], runResult: null,
+        perRoundScores: prevScores,
+        totalCost:    prevCost,
+        totalOptimal: prevOptimal,
+      });
+    }
+    function restartGame() {
+      setState({
+        view: 'intro', round: 0, picks: [], runResult: null,
+        totalCost: 0, totalOptimal: 0, perRoundScores: [], explainOpen: false,
+      });
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+    }
+
+    function animateCounter(el, from, to, duration) {
+      const start = performance.now();
+      const step = (now) => {
+        const t = Math.min((now - start) / duration, 1);
+        const eased = 1 - Math.pow(1 - t, 3);
+        el.textContent = Math.round(from + (to - from) * eased);
+        if (t < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    }
+
+    function afterRender() {
+      if (state.view === 'result') {
+        const scoreEl = document.querySelector('.score-num');
+        if (scoreEl) animateCounter(scoreEl, 0, state.runResult.score, 900);
+        if (state.runResult.qualityFails > 0) {
+          setTimeout(() => document.querySelector('.result')?.classList.add('shake'), 150);
+        }
+      }
+      if (state.view === 'gameover') {
+        const scoreEl = document.querySelector('.score-num');
+        const avg = state.perRoundScores.length
+          ? Math.round(state.perRoundScores.reduce((a, b) => a + b, 0) / state.perRoundScores.length) : 0;
+        if (scoreEl) animateCounter(scoreEl, 0, avg, 1200);
+      }
+    }
+
+    render();
+  </script>
+</body>
+</html>
